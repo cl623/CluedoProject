@@ -1,0 +1,2 @@
+# Cluedo Part 1 — no third-party dependencies.
+# Python >= 3.8 required (stdlib only).
