@@ -1,6 +1,6 @@
 # Presentation notes (demo and marking)
 
-We use this checklist when demonstrating the project and explaining design choices to markers.
+I use this checklist when demonstrating the project and explaining design choices to markers.
 
 ## Setup for a stable demo
 
@@ -10,7 +10,7 @@ We use this checklist when demonstrating the project and explaining design choic
 
 ## Storyline (what to say in ~2–5 minutes)
 
-1. **Goal:** Deduce the one suspect, one weapon, and one room in the murder envelope; other cards are dealt (or unused in the classic unused pile—here we deal the remainder evenly).
+1. **Goal:** Deduce the one suspect, one weapon, and one room in the murder envelope; other cards are dealt (or unused in the classic unused pile—here I deal the remainder evenly).
 2. **Board model:** Rooms and doors live in `cluedo/mansion.py` as a graph; movement uses BFS to list rooms reachable within the dice roll.
 3. **Suggestions:** After moving into a new room, the current player may suggest a suspect, weapon, and that room. Refutation runs **clockwise** from the suggester’s left; the first player who holds any of the three cards must show **exactly one** of those cards to the suggester only. If they hold more than one, **they choose** which to show (implemented in the CLI).
 4. **Information and fairness:** After each suggestion, the game prints a **public recap** everyone can note. The log file separates public facts from the suggester-only card identity.

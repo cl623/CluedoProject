@@ -1,6 +1,6 @@
 # Cluedo / Clue — Part 1
 
-Implemented a text-based digital version of the classic murder-mystery game **Cluedo** (known as **Clue** in North America). The program covers mansion layout, six suspects, six weapons, nine rooms, random secret solution, dice-based movement on the room graph, suggestions with clockwise refutation, structured suggestion history, optional session logging, optional deduction sheets, and accusations at more than one point in the turn.
+Implemented a digital version of the classic murder-mystery game **Cluedo** (known as **Clue** in North America). The **CLI** uses text prompts; the **Tkinter UI** adds a **clickable node–link map** of rooms (edges match the same graph as the engine), **card-style tiles** for suspects, weapons, and rooms in dialogs, a **chip-style deduction** panel, and clearer roll/move hints—while reusing the same rules and `GameEngine` as the text mode.
 
 ## Prerequisites
 
@@ -29,8 +29,10 @@ ChristianLaggui_Project2_SourceCode/
     __init__.py
     app.py                    # Main Tkinter app frame and setup/game screens
     controller.py             # UI turn-phase controller over game engine
-    dialogs.py                # Private/public modal dialogs
-    widgets.py                # Reusable status/history/action/board widgets
+    dialogs.py                # Tile-based and private/public modal dialogs
+    widgets.py                # Status, history, deduction chips, legacy list board
+    board_map.py              # Interactive Canvas map (rooms + edges from mansion graph)
+    theme.py                  # Card tile styling and emoji per suspect/weapon/room
   docs/
     PROJECT_REPORT.md         # Assignment report draft (export to PDF for submission)
 ```
@@ -92,10 +94,10 @@ python main_tk.py --seed 42 --log cluedo_session.log
 1. Choose **3–6** players and enter each display name.
 2. Each player picks a **unique** character (Miss Scarlett, Colonel Mustard, and so on).
 3. Each player privately views their dealt cards when prompted.
-4. On a turn: we may attempt a **final accusation** before rolling; then the game rolls **two dice**; we may move to any other room reachable along the mansion graph within that many steps, or stay.
-5. After **moving into** a room (not when staying put), we may make a **suggestion** (suspect + weapon + current room). Starting to the suggester’s left, the first player who can **refutes** chooses **one** matching card in their hand to show **only to the suggester** (others should look away for that step).
+4. On a turn: the **current player** may attempt a **final accusation** before rolling; then the game rolls **two dice**. In the **UI**, reachable rooms appear **green** on the map—**click** one to select, then press **Move** (or confirm staying put with no selection when allowed). In **CLI** mode, the current player chooses the destination from a list.
+5. After **moving into** a room (not when staying put), the current player may make a **suggestion** (suspect + weapon + current room). Starting to the suggester’s left, the first player who can **refutes** chooses **one** matching card in their hand to show **only to the suggester** (others should look away for that step).
 6. After each suggestion, a **public record** is printed (and optionally appended to `--log`) so everyone can track refutations without learning which card was shown.
-7. We may attempt a **final accusation** again after the suggestion step; a wrong accusation **eliminates** that player without revealing the envelope.
+7. The **current player** may attempt a **final accusation** again after the suggestion step; a wrong accusation **eliminates** that player without revealing the envelope.
 
 For a short demo script and talking points, see [PRESENTATION.md](PRESENTATION.md).
 

@@ -3,9 +3,10 @@ name: cluedo-project-report
 description: >-
   Maintains and extends the Cluedo project report (Markdown draft exportable to
   PDF), updates sections as implementation progresses, and keeps placeholders for
-  screenshots and testing evidence. Use when the user asks for project
-  documentation, the assignment report, PDF, write-up, or to refresh docs after
-  features ship.
+  screenshots and testing evidence. Applies first-person singular voice in
+  narrative sections and avoids we/you in authored project prose. Use when the
+  user asks for project documentation, the assignment report, PDF, write-up, or
+  to refresh docs after features ship.
 ---
 
 # Cluedo project documentation agent
@@ -31,7 +32,7 @@ Ensure the document is well-organized and visually appealing.
 ## Responsibilities
 
 1. **Keep the report current**  
-   After meaningful code changes (new UI, rules, CLI flags), update the relevant sections in `docs/PROJECT_REPORT.md`: architecture, how to run, testing notes, challenges, stability.
+   After meaningful code changes (new UI, rules, CLI flags), update the relevant sections in `docs/PROJECT_REPORT.md`: architecture, how to run, testing notes, challenges, stability. When touching narrative sections, apply **Style §6** (first person **I** where appropriate; no **we** or **you** in authored text).
 
 2. **Structure**  
    Preserve the assignment section order. Use clear headings and short paragraphs; tables and bullet lists are encouraged for scannability.
@@ -47,8 +48,12 @@ Ensure the document is well-organized and visually appealing.
 5. **PDF export**  
    Remind that the Markdown source is the draft; PDF is produced externally (e.g. Pandoc, VS Code / Word print-to-PDF, or Typora). Do not require new dependencies in the repo for PDF generation unless the user asks.
 
-6. **Style**  
-   Write on behalf of the project (“we”), per author preference. Avoid naming specific assistant products.
+6. **Voice and style (reports and related project documents)**  
+   - Use **first person singular** where narrative is appropriate—e.g. abstract, introduction, motivation, challenges, what was built, and testing experience: **I / my / me** (not **we**).  
+   - Do **not** use **you** or **your** in authored body text (instructions, asides, or direct address). Rephrase impersonally or with **I** instead.  
+   - For **neutral specification** (implemented game rules, file layout, architecture facts), **third person** or **declarative** phrasing is fine (e.g. “The CLI supports…”, “Movement uses BFS…”) so the prose stays clear without *we* or *you*.  
+   - The verbatim **assignment requirements** block above may retain original wording from the brief; everything **authored for the report** still follows this voice section.  
+   - Avoid naming specific assistant products in project documentation.
 
 ## Workflow when the user asks to “update the report”
 
@@ -56,6 +61,7 @@ Ensure the document is well-organized and visually appealing.
 2. Patch `docs/PROJECT_REPORT.md` only where facts changed.
 3. If screenshots are missing, add TODO placeholders and a minimal list of recommended captures.
 4. Keep total length reasonable for ≤10 pages when rendered (roughly 2500–4000 words depending on images).
+5. In every report pass, ensure patched or new prose in `PROJECT_REPORT.md` (and any companion docs updated in the same task) conforms to **Style §6**—no **we**, **your**, or direct **you**.
 
 ## reference
 
