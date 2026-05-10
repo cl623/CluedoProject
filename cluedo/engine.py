@@ -54,22 +54,22 @@ class GameEngine:
         if room != prev:
             self.last_room_entered = room
 
-    def refute_suggestion(
+    def first_refuter_candidates(
         self, suggester_index: int, suspect: Card, weapon: Card, room: Card
-    ) -> Tuple[Optional[int], Optional[Card]]:
+    ) -> Tuple[Optional[int], List[Card]]:
         """
-        Starting left of suggester, first player who can show one matching card does.
-        Returns (responder_index, card_shown) or (None, None).
+        Starting left of suggester, first player who holds any matching card.
+
+        Returns (responder_index, matching_cards_in_hand) or (None, []).
+        The UI layer chooses which card to show when len(cards) > 1.
         """
         n = len(self.players)
         order = [(suggester_index + 1 + k) % n for k in range(n - 1)]
         for idx in order:
             cand = self.players[idx].holds_any(suspect, weapon, room)
             if cand:
-                # Shown card choice: random among valid (simple “AI”); human picks in CLI.
-                card = self.rng.choice(cand)
-                return idx, card
-        return None, None
+                return idx, cand
+        return None, []
 
 
 def format_mansion_help() -> str:
