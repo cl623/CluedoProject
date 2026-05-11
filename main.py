@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Cluedo / Clue — Part 1 text-based game entry point.
+Cluedo / Clue — text-based game entry point.
 
 Run: python main.py
 """
@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import argparse
 import sys
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from cluedo.cards import Card
 from cluedo.constants import ROOMS, SUSPECTS, WEAPONS
+from cluedo.deduction import DeductionSheet, sheets_for_players
 from cluedo.engine import GameEngine, accusation_matches, format_mansion_help
+from cluedo.history import SuggestionRecord
 from cluedo.mansion import neighbors, rooms_within_steps
 
 
@@ -68,6 +70,12 @@ def reveal_hands(engine: GameEngine) -> None:
         print()
 
 
+def append_session_log(path: str, lines: List[str]) -> None:
+    with open(path, "a", encoding="utf-8") as f:
+        for line in lines:
+            f.write(line + "\n")
+
+
 def movement_phase(engine: GameEngine) -> None:
     p = engine.current_player
     roll = engine.rng.randint(1, 6) + engine.rng.randint(1, 6)
@@ -114,7 +122,48 @@ def pick_from_list(title: str, options: Tuple[str, ...], default: Optional[str] 
         print("Invalid selection.")
 
 
-def suggestion_phase(engine: GameEngine) -> None:
+def pick_matching_card_to_show(responder_name: str, candidates: List[Card]) -> Card:
+    if len(candidates) == 1:
+        return candidates[0]
+    print(f"\n[{responder_name}] You must show exactly one card to the suggester. Choose which:")
+    for i, c in enumerate(candidates, start=1):
+        print(f"  {i}. {c.name} ({c.category})")
+    while True:
+        raw = prompt_line("Enter number or exact card name: ").strip()
+        if raw.isdigit():
+            k = int(raw)
+            if 1 <= k <= len(candidates):
+                return candidates[k - 1]
+        for c in candidates:
+            if raw == c.name or raw.lower() == c.name.lower():
+                return c
+        print("Invalid choice.")
+
+
+def print_public_recap(rec: SuggestionRecord) -> None:
+    print("\n--- Public record (everyone may note this) ---")
+    print(
+        f"Turn {rec.turn}: {rec.suggester_name} ({rec.suggester_character}) suggested "
+        f"{rec.suspect} / {rec.weapon} / {rec.room}."
+    )
+    if not rec.had_refutation:
+        print("  No player refuted (no one held any of those three cards).")
+    else:
+        assert rec.refuter_name is not None and rec.refuter_character is not None
+        print(
+            f"  {rec.refuter_name} ({rec.refuter_character}) refuted and showed one card "
+            f"to {rec.suggester_name} only (others do not see which card)."
+        )
+    print("--- End public record ---\n")
+
+
+def suggestion_phase(
+    engine: GameEngine,
+    turn: int,
+    history: List[SuggestionRecord],
+    log_path: Optional[str],
+    deduction_sheets: Dict[str, DeductionSheet],
+) -> None:
     if engine.last_room_entered is None:
         return
     p = engine.current_player
@@ -134,19 +183,66 @@ def suggestion_phase(engine: GameEngine) -> None:
     print(
         f"\n{p.name} suggests: It was {suspect_name} in the {p.current_room} with the {weapon_name}."
     )
-    idx, shown = engine.refute_suggestion(engine.current_index, suspect, weapon, room_card)
-    if shown is None:
+    idx, candidates = engine.first_refuter_candidates(
+        engine.current_index, suspect, weapon, room_card
+    )
+    shown: Optional[Card] = None
+    refuter_name: Optional[str] = None
+    refuter_character: Optional[str] = None
+    had_refutation = False
+
+    if not candidates:
         print("No one could refute your suggestion.")
     else:
+        had_refutation = True
         responder = engine.players[idx]
+        refuter_name = responder.name
+        refuter_character = responder.character
+        shown = pick_matching_card_to_show(responder.name, candidates)
         print(f"{responder.name} shows a card to {p.name} (privately).")
         prompt_line(f"[{p.name}] Press Enter to see the card shown to you...")
         print(f"  Shown card: {shown.name} ({shown.category})")
+        if p.character in deduction_sheets and shown is not None:
+            deduction_sheets[p.character].eliminate_card(shown)
         if idx != engine.current_index:
             prompt_line("[Everyone else] Press Enter when ready...")
 
+    rec = SuggestionRecord(
+        turn=turn,
+        suggester_name=p.name,
+        suggester_character=p.character,
+        suspect=suspect_name,
+        weapon=weapon_name,
+        room=p.current_room,
+        refuter_name=refuter_name,
+        refuter_character=refuter_character,
+        had_refutation=had_refutation,
+    )
+    history.append(rec)
+    print_public_recap(rec)
 
-def accusation_option(engine: GameEngine) -> str:
+    if log_path:
+        pub = (
+            f"[Turn {rec.turn}] PUBLIC: {rec.suggester_name} ({rec.suggester_character}) suggested "
+            f"{rec.suspect} | {rec.weapon} | {rec.room}. "
+        )
+        if rec.had_refutation:
+            pub += (
+                f"Refuted by {rec.refuter_name} ({rec.refuter_character}); "
+                "card shown only to suggester."
+            )
+        else:
+            pub += "No refutation."
+        lines = [pub]
+        if shown is not None:
+            lines.append(
+                f"  PRIVATE (suggester only): {rec.suggester_name} was shown: "
+                f"{shown.name} ({shown.category})"
+            )
+        append_session_log(log_path, lines)
+
+
+def accusation_option(engine: GameEngine, deduction_sheets: Dict[str, DeductionSheet]) -> str:
     """
     Returns:
         'win' — game over (correct accusation, or no players left).
@@ -163,8 +259,10 @@ def accusation_option(engine: GameEngine) -> str:
         print(f"\n{p.name} wins! The solution was {s}, {w}, {r}.")
         return "win"
     print(f"\n{p.name}'s accusation is incorrect and they are eliminated from play.")
+    ch = p.character
     idx = engine.current_index
     del engine.players[idx]
+    deduction_sheets.pop(ch, None)
     if not engine.players:
         print("No players remain. The game ends without a winner.")
         return "win"
@@ -173,40 +271,81 @@ def accusation_option(engine: GameEngine) -> str:
     return "eliminated"
 
 
-def play(seed: Optional[int]) -> int:
-    print("Cluedo / Clue — Part 1 (text mode)")
+def play(seed: Optional[int], log_path: Optional[str], show_sheet: bool) -> int:
+    print("Cluedo / Clue (text mode)")
     print("=" * 50)
     if seed is not None:
         print(f"Random seed: {seed}")
+    if log_path:
+        print(f"Session log (append): {log_path}")
+    if show_sheet:
+        print("Deduction sheet: on (printed at start of each turn for the active player).")
+
     specs = setup_players()
     engine = GameEngine.new_game(specs, seed=seed)
     reveal_hands(engine)
 
+    deduction_sheets = sheets_for_players(engine.players)
+    suggestion_history: List[SuggestionRecord] = []
+
     print(format_mansion_help())
     print("The murder envelope holds one suspect, one weapon, and one room.\n")
 
+    if log_path:
+        append_session_log(
+            log_path,
+            [f"=== New session (seed={seed!r}) ==="],
+        )
+
+    turn = 0
     while True:
+        turn += 1
         p = engine.current_player
-        print(f"\n--- Turn: {p.name} playing as {p.character} ---")
+        print(f"\n--- Turn {turn}: {p.name} playing as {p.character} ---")
         print(f"Location: {p.current_room}")
         print(f"Exits: {', '.join(neighbors(p.current_room))}")
 
-        movement_phase(engine)
-        suggestion_phase(engine)
+        if show_sheet and p.character in deduction_sheets:
+            print("\n--- Deduction sheet (cards that might still be in the envelope) ---")
+            print(deduction_sheets[p.character].format_compact())
+            print("---\n")
 
-        outcome = accusation_option(engine)
+        outcome = accusation_option(engine, deduction_sheets)
         if outcome == "win":
             return 0
+        if outcome == "eliminated":
+            continue
+
+        movement_phase(engine)
+
+        suggestion_phase(engine, turn, suggestion_history, log_path, deduction_sheets)
+
+        outcome = accusation_option(engine, deduction_sheets)
+        if outcome == "win":
+            return 0
+        if outcome == "eliminated":
+            continue
         if outcome == "continue":
             engine.advance_turn()
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description="Cluedo / Clue text game (Part 1)")
+    parser = argparse.ArgumentParser(description="Cluedo / Clue text game")
     parser.add_argument("--seed", type=int, default=None, help="RNG seed for reproducible deals")
+    parser.add_argument(
+        "--log",
+        metavar="FILE",
+        default=None,
+        help="Append human-readable suggestion/refutation lines to this file",
+    )
+    parser.add_argument(
+        "--sheet",
+        action="store_true",
+        help="Print each active player's deduction possibilities at the start of their turn",
+    )
     args = parser.parse_args(argv)
     try:
-        return play(args.seed)
+        return play(args.seed, args.log, args.sheet)
     except KeyboardInterrupt:
         print("\nGame aborted.")
         return 130
